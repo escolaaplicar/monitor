@@ -275,6 +275,17 @@ async function principal () {
   // estaria perdido para sempre — silêncio exatamente no caso em que o sistema
   // está fora do ar. Enviando primeiro, uma falha de e-mail deixa o estado
   // antigo no lugar e a execução seguinte tenta de novo.
+  // Retrato da credencial que não expõe a credencial. O 535 do Google não
+  // distingue "senha errada" de "senha do tipo errado", e sem isto a
+  // investigação vira tentativa e erro às cegas. O comprimento basta: uma senha
+  // de aplicativo tem exatamente 16 caracteres depois de tirados os espaços;
+  // qualquer outro número é quase certamente a senha normal da conta.
+  const senhaLimpa = exigir('SMTP_PASS').replace(/\s+/g, '')
+  const usuario = exigir('SMTP_USER').trim()
+  console.log(`SMTP: usuário em @${usuario.split('@')[1] ?? '(sem domínio!)'}, ` +
+    `senha de ${senhaLimpa.length} caracteres ` +
+    `${senhaLimpa.length === 16 ? '(formato de senha de aplicativo)' : '(NÃO tem os 16 caracteres de uma senha de aplicativo)'}`)
+
   for (const { alvo, forcado, resultado, anterior } of mudancas) {
     const assunto = montarAssunto(alvo, resultado, anterior)
     console.log(`Enviando: ${assunto}`)
