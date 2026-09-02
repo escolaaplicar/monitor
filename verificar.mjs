@@ -35,6 +35,12 @@ const ALVOS = [
   }
 ]
 
+// O /saude entrega o veredito (`ok` e o status HTTP) a qualquer um, e o
+// DIAGNÓSTICO — qual dependência caiu e com que erro — só a quem manda o token.
+// Sem o segredo cadastrado o monitor continua funcionando e continua acertando
+// se caiu; o que ele perde é a parte do e-mail que diz o porquê.
+const TOKEN_DO_SAUDE = (process.env.SAUDE_TOKEN ?? '').trim()
+
 const TENTATIVAS = 3
 const ESPERA_ENTRE_TENTATIVAS_MS = 20_000
 const LIMITE_POR_REQUISICAO_MS = 10_000
@@ -55,7 +61,10 @@ async function tentar (url) {
     const resposta = await fetch(url, {
       signal: AbortSignal.timeout(LIMITE_POR_REQUISICAO_MS),
       redirect: 'follow',
-      headers: { 'user-agent': 'PrediaLab-Monitor/1.0 (GitHub Actions)' }
+      headers: {
+        'user-agent': 'PrediaLab-Monitor/1.0 (GitHub Actions)',
+        ...(TOKEN_DO_SAUDE ? { authorization: `Bearer ${TOKEN_DO_SAUDE}` } : {})
+      }
     })
     const corpo = await resposta.text().catch(() => '')
     return {
@@ -190,6 +199,14 @@ function montarCorpo (alvo, resultado, anterior, forcado = false) {
 
   if (u.corpo) {
     linhas.push('')
+    // Condição baseada no conteúdo, e não numa propriedade do alvo: no modo de
+    // teste o alvo é substituído, e uma condição sobre ele deixaria justamente
+    // o teste sem exercitar este aviso.
+    if (!TOKEN_DO_SAUDE && u.corpo.includes('"ok"') && !u.corpo.includes('verificacoes')) {
+      linhas.push('(O diagnóstico detalhado exige o segredo SAUDE_TOKEN, que não')
+      linhas.push(' está cadastrado neste repositório. Ver o README.)')
+      linhas.push('')
+    }
     linhas.push(`Primeiros ${CARACTERES_DO_CORPO_NO_EMAIL} caracteres da resposta:`)
     linhas.push('─'.repeat(60))
     linhas.push(u.corpo.slice(0, CARACTERES_DO_CORPO_NO_EMAIL))

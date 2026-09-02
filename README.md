@@ -71,6 +71,27 @@ Sem ela o Google nem mostra a opção de senha de aplicativo.
 | `SMTP_USER` | o e-mail que **envia** — ex.: `allan@escolaaplicar.com.br` |
 | `SMTP_PASS` | as 16 letras do Passo 1 |
 | `ALERT_TO` | quem **recebe** o alerta. Vários separados por vírgula |
+| `SAUDE_TOKEN` | **opcional** — ver abaixo |
+
+### O quarto segredo, que é opcional
+
+O `/saude` responde a qualquer um, porque um monitor externo não tem sessão para
+apresentar. Mas ele não entrega tudo a qualquer um:
+
+| quem pergunta | recebe |
+|---|---|
+| qualquer pessoa | o veredito: `{"ok": false}` e o status HTTP 503 |
+| quem manda o token | isso **mais** o diagnóstico: qual dependência caiu e com que erro |
+
+O diagnóstico fica atrás do token porque as mensagens de erro nomeiam peças
+internas e podem conter endereço de servidor ou trecho de credencial recusada.
+O veredito não é segredo — é o mesmo que qualquer pessoa deduz tentando usar o
+sistema — e mantê-lo aberto deixa qualquer monitor genérico funcionar.
+
+Se `SAUDE_TOKEN` estiver cadastrado aqui **com o mesmo valor** que está no
+Railway, o e-mail de queda chega dizendo *o que* falhou. Sem ele, o monitor
+funciona igual e acerta que caiu; só o trecho explicativo do e-mail some, e ele
+mesmo avisa que sumiu por isso.
 
 O nome tem que estar exatamente assim, em maiúsculas. Depois de salvo, o GitHub
 nunca mais mostra o valor — só permite substituir. Isso é o esperado.

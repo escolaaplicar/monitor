@@ -111,6 +111,9 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           ALERT_TO: ${{ secrets.ALERT_TO }}
+          # Opcional. Sem ele o monitor funciona e acerta se caiu; o que se
+          # perde é o trecho do e-mail que diz QUAL dependência falhou.
+          SAUDE_TOKEN: ${{ secrets.SAUDE_TOKEN }}
         run: node verificar.mjs
 
       # Só chega aqui se o passo anterior deu certo — e o script só grava o
