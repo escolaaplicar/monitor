@@ -293,8 +293,12 @@ async function principal () {
       // Fixos no Gmail em produção. As duas variáveis existem para poder
       // apontar a um servidor de teste local sem tocar no código — é como a
       // conversa SMTP inteira foi verificada antes de ir para o ar.
-      host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
-      port: Number(process.env.SMTP_PORT ?? 587),
+      // `||`, e nunca `??`: uma variavel declarada no workflow e nao definida no
+      // repositorio chega como string VAZIA, e `??` so cai no padrao quando o
+      // valor e ausente. Com `??`, o monitor tentava conectar em host "" e
+      // porta 0 e morria em 60ms sem nunca falar com o Gmail.
+      host: process.env.SMTP_HOST?.trim() || 'smtp.gmail.com',
+      port: Number(process.env.SMTP_PORT?.trim() || 587),
       user: exigir('SMTP_USER'),
       pass: exigir('SMTP_PASS'),
       from: exigir('SMTP_USER'),
@@ -343,6 +347,11 @@ principal().catch((e) => {
   // Falha visível, e não engolida: o job fica vermelho no GitHub e a mensagem
   // aparece no log. Vale tanto para o e-mail que não saiu quanto para um
   // secret ausente.
-  console.error(`\nFALHOU: ${e.message}`)
+  // Nem todo erro que chega aqui e um Error com mensagem util: um socket que
+  // morre no aperto de mao pode trazer so um `code`. Imprimir a mensagem vazia
+  // transformava a falha visivel numa linha "FALHOU:" sem nada depois, que e
+  // pior do que nao ter erro nenhum -- parece defeito do log, nao do envio.
+  console.error(`\nFALHOU: ${e?.message || e?.code || String(e)}`)
+  if (e?.cause) console.error(`Causa: ${e.cause.message ?? e.cause}`)
   process.exit(1)
 })
