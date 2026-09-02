@@ -1,0 +1,136 @@
+# Monitor de disponibilidade, externo à infraestrutura do PrediaLab.
+#
+# ## Por que ele existe
+#
+# O `/saude` do backend sabe dizer se banco, Redis, worker e filas estão
+# inteiros — mas ninguém pergunta a ele. A falha de 31/08/2026 é o caso de uso:
+# o app abria, a lista de projetos abria, o `/up` respondia 200, e nenhum
+# e-mail de código de acesso saía, porque o Redis estava com senha velha. Só não
+# doeu porque ninguém tentou entrar naquela janela.
+#
+# ## Por que no GitHub Actions e não num serviço de monitoramento
+#
+# Ele precisa ser externo à infraestrutura vigiada — um monitor hospedado no
+# mesmo Railway cai junto com o que deveria vigiar. O GitHub é independente do
+# Railway e da Cloudflare, que são as duas coisas que ele observa.
+#
+# ## Por que num repositório separado, e público
+#
+# O repositório do PrediaLab é privado, e repositório privado tem os minutos de
+# Actions cobrados: a cada 5 minutos são 288 execuções por dia, e o GitHub
+# arredonda cada uma para 1 minuto cheio. Dá ~8.640 minutos/mês contra 2.000 de
+# cota gratuita — cerca de US$ 53/mês para vigiar dois endereços, dividindo
+# ainda a cota com o CI.
+#
+# Repositório público tem minutos ilimitados. Este aqui pode ser público porque
+# não contém nada do produto: só sabe consultar dois endereços que qualquer
+# pessoa já pode abrir no navegador. As credenciais de e-mail ficam em GitHub
+# Secrets, que são privados mesmo em repositório público.
+#
+# Uma limitação honesta: o `schedule` do GitHub Actions não é pontual. Sob
+# carga a execução atrasa, e cinco minutos podem virar dez ou quinze. Para
+# "avisar que caiu" isso é aceitável; para medir disponibilidade com precisão,
+# não é. Se um dia a precisão importar, aí sim vale um serviço dedicado.
+name: Monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      forcar_falha:
+        description: 'Forçar falha, para testar o alerta sem esperar queda real'
+        type: choice
+        default: nenhum
+        options: [nenhum, api, app, ambos]
+      url_de_teste:
+        description: 'URL a usar na falha forçada (vazio = subdomínio inexistente)'
+        type: string
+        default: ''
+
+# Duas execuções ao mesmo tempo brigariam pelo push do arquivo de estado, e a
+# perdedora poderia gravar um estado antigo por cima do novo. `cancel-in-progress`
+# fica FALSO de propósito: cancelar a execução em curso poderia matá-la depois
+# de o e-mail sair e antes de o estado ser gravado — o alerta seria reenviado.
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    name: Conferir os dois endereços
+    runs-on: ubuntu-latest
+    # As 3 tentativas espaçadas em 20s levam ~40s por alvo caído. 10 minutos dão
+    # folga larga e ainda impedem que um travamento consuma o teto de 6 h.
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Baixar o código do monitor
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # ── O estado mora numa branch órfã, não na main ──
+      #
+      # Um push na `main` republica o sistema inteiro: o Railway reconstrói o
+      # backend e o Cloudflare Pages reconstrói a tela. Gravar o estado lá faria
+      # cada mudança de disponibilidade disparar um deploy de produção — pior,
+      # um deploy no exato momento em que algo já está caído.
+      #
+      # A branch `monitor-estado` não é observada por nenhum dos dois e não tem
+      # relação com o histórico do projeto (por isso órfã: nasce sem passado,
+      # sem carregar cópia da árvore). Ela guarda um arquivo só.
+      - name: Buscar o estado da execução anterior
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          if git clone --depth=1 --branch monitor-estado --quiet "$REPO" estado 2>/dev/null; then
+            echo "Estado anterior encontrado:"
+            cat estado/estado.json
+          else
+            echo "A branch monitor-estado ainda não existe — primeira execução."
+            git clone --depth=1 --quiet "$REPO" estado
+            cd estado
+            git checkout --quiet --orphan monitor-estado
+            git rm -rq --cached .
+            find . -maxdepth 1 ! -name .git ! -name . -exec rm -rf {} +
+          fi
+
+      - name: Verificar
+        env:
+          FORCAR_FALHA: ${{ inputs.forcar_falha }}
+          URL_DE_TESTE: ${{ inputs.url_de_teste }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ALERT_TO: ${{ secrets.ALERT_TO }}
+        run: node verificar.mjs
+
+      # Só chega aqui se o passo anterior deu certo — e o script só grava o
+      # arquivo depois de o e-mail ter saído. Então "há mudança para commitar"
+      # significa "o alerta foi entregue", nunca "o alerta se perdeu".
+      - name: Guardar o novo estado
+        run: |
+          set -euo pipefail
+          cd estado
+          git add estado.json 2>/dev/null || true
+
+          # Sem mudança de estado o script nem escreve o arquivo, então não há
+          # o que commitar — que é o caso da esmagadora maioria das execuções.
+          if git diff --cached --quiet; then
+            echo "Estado inalterado — nada a commitar."
+            exit 0
+          fi
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -qm "monitor: $(node -p "Object.entries(require('./estado.json')).map(([k,v])=>k+'='+v.estado).join(' ')")"
+          git push --quiet origin monitor-estado
+          echo "Estado publicado na branch monitor-estado."
