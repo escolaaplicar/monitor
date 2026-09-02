@@ -108,6 +108,12 @@ jobs:
         env:
           FORCAR_FALHA: ${{ inputs.forcar_falha }}
           URL_DE_TESTE: ${{ inputs.url_de_teste }}
+          # Trocar de provedor de e-mail e configuracao, nao codigo. Vazias,
+          # valem smtp.gmail.com:587. O backend do PrediaLab, por exemplo, ja
+          # envia pelo Resend (smtp.resend.com), cuja porta 587 funciona fora do
+          # Railway -- e la o usuario e o literal "resend" e a senha e a API key.
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           ALERT_TO: ${{ secrets.ALERT_TO }}

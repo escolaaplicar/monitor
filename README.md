@@ -141,6 +141,25 @@ uma vez resolve para sempre.
 
 ---
 
+## Se o Google não colaborar: trocar de provedor
+
+O provedor de e-mail é configuração, não código. Em **Settings → Secrets and
+variables → Actions → aba Variables**, criando `SMTP_HOST` e `SMTP_PORT`, o
+monitor passa a enviar por outro servidor. Vazias, ele usa `smtp.gmail.com:587`.
+
+O PrediaLab já envia por **Resend** em produção, e essa é a alternativa mais
+curta se a conta do Workspace continuar recusando:
+
+| variável | valor |
+|---|---|
+| `SMTP_HOST` (Variable) | `smtp.resend.com` |
+| `SMTP_PORT` (Variable) | `587` |
+| `SMTP_USER` (Secret) | `resend` — o literal, não um e-mail |
+| `SMTP_PASS` (Secret) | a API key do Resend |
+
+> A porta é 587 aqui e 2587 no backend. Não é engano: o Railway bloqueia saída
+> na 587, e o GitHub não.
+
 ## Como ele decide que caiu
 
 **Três tentativas espaçadas em 20 segundos, e só alerta se as três falharem.**
