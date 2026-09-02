@@ -1,12 +1,12 @@
 {
   "api": {
-    "estado": "down",
-    "desde": "2026-09-02T12:34:03.067Z",
-    "ultima_verificacao": "2026-09-02T12:34:03.067Z"
+    "estado": "up",
+    "desde": "2026-09-02T12:34:52.392Z",
+    "ultima_verificacao": "2026-09-02T12:34:52.392Z"
   },
   "app": {
     "estado": "up",
     "desde": "2026-09-02T12:34:03.589Z",
-    "ultima_verificacao": "2026-09-02T12:34:03.589Z"
+    "ultima_verificacao": "2026-09-02T12:34:52.726Z"
   }
 }
