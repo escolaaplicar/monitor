@@ -51,12 +51,25 @@ Sem ela o Google nem mostra a opção de senha de aplicativo.
 4. Clique em **Criar**.
 5. O Google mostra **16 letras em quatro blocos**, tipo `abcd efgh ijkl mnop`.
    **Copie agora**: essa tela não volta. Se perder, apague e crie outra.
-6. Os espaços não importam — pode colar com ou sem eles.
+6. Os espaços não importam: o script os remove antes de autenticar. Eles são
+   só apresentação do Google — a senha real são as 16 letras.
 
 > Se a página disser que a opção não está disponível, quase sempre é a
 > verificação em duas etapas desligada, ou o administrador do Workspace ter
 > bloqueado senhas de aplicativo para o domínio. Nos dois casos a solução está
 > no painel de admin do Google, não aqui.
+
+**Se o alerta falhar com `535 Username and Password not accepted`**, o Google
+recusou a credencial. São três causas, e a resposta dele não distingue entre
+elas — por isso o próprio erro do monitor lista as três:
+
+1. `SMTP_PASS` guarda a **senha normal da conta**, e não uma senha de
+   aplicativo. A senha normal nunca funciona por SMTP, por mais correta que
+   esteja.
+2. `SMTP_USER` **não é a mesma conta** que gerou a senha de aplicativo.
+3. O administrador do Workspace bloqueou senhas de aplicativo no domínio.
+
+A causa 1 é de longe a mais comum.
 
 ### Passo 2 — Cadastrar os três segredos no GitHub
 

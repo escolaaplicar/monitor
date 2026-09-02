@@ -51,8 +51,14 @@ export async function enviarEmail ({ host, port, user, pass, from, to, subject, 
     await conversa.mandar(`EHLO ${nomeLocal(from)}`, 250, 'EHLO após TLS')
 
     await conversa.mandar('AUTH LOGIN', 334, 'início da autenticação')
-    await conversa.mandar(base64(user), 334, 'usuário')
-    await conversa.mandar(base64(pass), 235, 'senha')
+    await conversa.mandar(base64(user.trim()), 334, 'usuário')
+    // O Google mostra a senha de aplicativo em quatro blocos de quatro letras
+    // ("abcd efgh ijkl mnop"), e é assim que ela costuma ser copiada. Os espaços
+    // são só apresentação: a senha real são as 16 letras. Mandá-los junto rende
+    // um 535 "Username and Password not accepted" idêntico ao de senha errada,
+    // que manda a pessoa procurar o problema no lugar errado. Como este cliente
+    // só fala com o Gmail, tirar todo espaço em branco é seguro aqui.
+    await conversa.mandar(base64(pass.replace(/\s+/g, '')), 235, 'senha')
 
     await conversa.mandar(`MAIL FROM:<${from}>`, 250, 'remetente')
     for (const destinatario of listaDe(to)) {
@@ -136,7 +142,18 @@ function conferir (resposta, esperado, oQue) {
     // A resposta inteira entra no erro: o Gmail explica a recusa nela
     // ("Username and Password not accepted", "Application-specific password
     // required"), e sem isso alguém abriria o log para descobrir só o número.
-    throw new Error(`SMTP recusou ${oQue}: esperado ${esperado}, veio ${codigo}. Resposta: ${resposta.trim()}`)
+    // O 535 tem três causas comuns e indistinguíveis pela resposta do Google.
+    // Listá-las aqui evita que alguém troque a senha três vezes antes de
+    // descobrir que o problema era a conta.
+    const dica = codigo === 535
+      ? '\n\nO Google recusou a credencial. As três causas, em ordem de frequência:' +
+        '\n  1. SMTP_PASS não é uma senha de aplicativo, e sim a senha normal da conta.' +
+        '\n     A senha normal nunca funciona por SMTP; é preciso gerar uma em' +
+        '\n     https://myaccount.google.com/apppasswords (exige verificação em duas etapas).' +
+        '\n  2. SMTP_USER não é a MESMA conta que gerou a senha de aplicativo.' +
+        '\n  3. O administrador do Workspace bloqueou senhas de aplicativo no domínio.'
+      : ''
+    throw new Error(`SMTP recusou ${oQue}: esperado ${esperado}, veio ${codigo}. Resposta: ${resposta.trim()}${dica}`)
   }
 }
 
