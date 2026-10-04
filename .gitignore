@@ -1,3 +1,6 @@
 # A pasta que o workflow cria ao clonar a branch de estado. Ela é um clone
 # dentro do clone: nunca deve entrar no versionamento deste repositório.
 estado/
+
+# Cache local do Wrangler.
+worker/.wrangler/

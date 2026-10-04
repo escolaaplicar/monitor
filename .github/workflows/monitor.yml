@@ -33,9 +33,10 @@
 # não é. Se um dia a precisão importar, aí sim vale um serviço dedicado.
 name: Monitor
 
+# O agendamento saiu daqui em 04/10/2026: o GitHub rodava o "*/5" a cada 4-6h.
+# Quem vigia agora é o Cloudflare Worker em worker/. Este workflow fica só para
+# o disparo manual, inclusive o teste de falha forçada.
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       forcar_falha:

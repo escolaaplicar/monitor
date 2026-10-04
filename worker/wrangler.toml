@@ -14,7 +14,7 @@ crons = ["*/5 * * * *"]
 # O id sai de `npx wrangler kv namespace create ESTADO` — passo 2 do README.
 [[kv_namespaces]]
 binding = "ESTADO"
-id = "COLE_AQUI_O_ID_DO_KV"
+id = "0f9f1f78dec54524a6db746929d6f0ae"
 
 [vars]
 # Remetente no domínio já verificado no Resend (o mesmo do backend).
