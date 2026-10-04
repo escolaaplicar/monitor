@@ -1,0 +1,24 @@
+# Monitor do PrediaLab como Cloudflare Worker. Ver README.md desta pasta.
+name = "predialab-monitor"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# Sem rota HTTP pública: o Worker só existe para o cron. Não há o que abrir no
+# navegador, e um endereço *.workers.dev sem uso só seria superfície exposta.
+workers_dev = false
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Estado entre execuções (quem estava no ar, desde quando).
+# O id sai de `npx wrangler kv namespace create ESTADO` — passo 2 do README.
+[[kv_namespaces]]
+binding = "ESTADO"
+id = "COLE_AQUI_O_ID_DO_KV"
+
+[vars]
+# Remetente no domínio já verificado no Resend (o mesmo do backend).
+ALERT_FROM = "PrediaLab Monitor <noreply@escolaaplicar.com.br>"
+
+[observability]
+enabled = true
